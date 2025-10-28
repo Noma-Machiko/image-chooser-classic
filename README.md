@@ -11,10 +11,11 @@ Install either – or both – of the chooser nodes:
 | **Image Chooser** | Streamlined overlay picker that appears when a workflow pauses. |
 | **Image Chooser Classic** | Inline widget that renders thumbnails inside the node body. |
 
-<div style="display:flex; gap:16px; flex-wrap:wrap;">
-  <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" style="max-width:45%; min-width:240px; border-radius:8px;" />
-  <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" style="max-width:45%; min-width:240px; border-radius:8px;" />
-</div>
+<p align="center">
+  <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" width="70%" />
+  <br />
+  <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" width="70%" />
+</p>
 
 ## Features
 
