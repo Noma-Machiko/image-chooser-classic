@@ -1,130 +1,55 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Image Chooser Classic</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      line-height: 1.6;
-      max-width: 900px;
-      margin: 2rem auto;
-      padding: 0 1.5rem;
-      color: #1c1c1c;
-      background: #fafafa;
-    }
-    h1, h2, h3 {
-      color: #222;
-    }
-    h1 {
-      margin-bottom: 0.5rem;
-    }
-    section {
-      margin-bottom: 2.5rem;
-    }
-    .screenshots {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5rem;
-      margin: 1.5rem 0;
-    }
-    .screenshots figure {
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-      padding: 1rem;
-      text-align: center;
-    }
-    .screenshots img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 6px;
-    }
-    code, pre {
-      background: #f2f2f2;
-      border-radius: 4px;
-      padding: 0.2rem 0.4rem;
-    }
-    pre {
-      padding: 0.75rem 1rem;
-      overflow-x: auto;
-    }
-    ul {
-      padding-left: 1.25rem;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Image Chooser Classic</h1>
-    <p>
-      A modern re-implementation of the classic
-      <a href="https://github.com/chrisgoringe/cg-image-picker" target="_blank" rel="noreferrer">
-        cg-image-picker
-      </a>
-      ComfyUI nodes. Keep the workflow-pausing image selection experience while
-      shedding the legacy compatibility shims.
-    </p>
-  </header>
+# Image Chooser Classic
 
-  <section>
-    <h2>What’s inside</h2>
-    <p>Install either – or both – of the chooser nodes:</p>
-    <div class="screenshots">
-      <figure>
-        <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" />
-        <figcaption><strong>Image Chooser</strong><br />Streamlined overlay picker.</figcaption>
-      </figure>
-      <figure>
-        <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" />
-        <figcaption><strong>Image Chooser Classic</strong><br />Inline widget inside the node body.</figcaption>
-      </figure>
-    </div>
-  </section>
+A modern re-implementation of the classic [cg-image-picker](https://github.com/chrisgoringe/cg-image-picker) ComfyUI nodes. Keep the workflow-pausing image selection experience while shedding the legacy compatibility shims.
 
-  <section>
-    <h2>Features</h2>
-    <ul>
-      <li>Accept batched images/latents/masks and return only the chosen subset.</li>
-      <li>Supports “progress first pick”, queue cancellation, and familiar hotkeys (<code>1</code>–<code>9</code>, <code>0</code>, <code>Esc</code>).</li>
-      <li>Fully rewritten using modern ComfyUI extension APIs.</li>
-    </ul>
-  </section>
+## What’s inside
 
-  <section>
-    <h2>Installation</h2>
-    <p>Clone or copy the repository into your <code>ComfyUI/custom_nodes</code> folder:</p>
-    <pre><code>cd ComfyUI/custom_nodes
-git clone https://github.com/&lt;your-account&gt;/image-chooser-classic.git</code></pre>
-    <p>After restarting (or hard-refreshing) ComfyUI, you’ll find:</p>
-    <ul>
-      <li><code>Image Chooser</code></li>
-      <li><code>Image Chooser Classic</code></li>
-    </ul>
-  </section>
+Install either – or both – of the chooser nodes:
 
-  <section>
-    <h2>Usage tips</h2>
-    <ul>
-      <li><strong>Overlay node:</strong> ideal for large grids or when you want the chooser hovering over the canvas. Plays the optional alert sound when it pauses.</li>
-      <li><strong>Classic node:</strong> keeps everything in the graph. The widget automatically resizes to show the entire batch.</li>
-      <li><strong>Hotkeys:</strong> the chooser listens for 1–9 to toggle thumbnails, 0 to progress/cancel, and Esc to cancel.</li>
-    </ul>
-  </section>
+| Node | Description |
+|------|-------------|
+| **Image Chooser** | Streamlined overlay picker that appears when a workflow pauses. |
+| **Image Chooser Classic** | Inline widget that renders thumbnails inside the node body. |
 
-  <section>
-    <h2>Differences from the original project</h2>
-    <ul>
-      <li>No extraneous build metadata or auxiliary nodes – just the two chooser implementations.</li>
-      <li>Front-end logic rewritten around the current ComfyUI extension APIs.</li>
-      <li>Small, focused code base that’s easy to extend (styling, additional modes, etc.).</li>
-    </ul>
-  </section>
+<div style="display:flex; gap:16px; flex-wrap:wrap;">
+  <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" style="max-width:45%; min-width:240px; border-radius:8px;" />
+  <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" style="max-width:45%; min-width:240px; border-radius:8px;" />
+</div>
 
-  <section>
-    <h2>Contributing</h2>
-    <p>Fork away and adapt these choosers to your workflow. Pull requests are welcome – whether you add screenshots, alternative layouts, or automated tests.</p>
-    <p>Enjoy choosing images the way you like! ✨</p>
-  </section>
-</body>
-</html>
+## Features
+
+- Accept batched images/latents/masks and return only the chosen subset.
+- Supports “progress first pick”, queue cancellation, and familiar hotkeys (`1`–`9`, `0`, `Esc`).
+- Rewritten front-end using modern ComfyUI extension APIs.
+
+## Installation
+
+Clone or copy the repository into your `ComfyUI/custom_nodes` folder:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/<your-account>/image-chooser-classic.git
+```
+
+Restart (or hard-refresh) ComfyUI so the new JavaScript files load. The **Add Node** dialog will list:
+
+- `Image Chooser`
+- `Image Chooser Classic`
+
+## Usage tips
+
+- **Overlay node** – ideal for large grids or when you want the chooser hovering over the canvas. Plays an optional alert sound when it pauses.
+- **Classic node** – keeps everything in the graph. The widget automatically resizes to show the entire batch.
+- **Hotkeys** – the chooser listens for 1–9 to toggle thumbnails, 0 to progress/cancel, and Esc to cancel.
+
+## Differences from the original project
+
+- No extraneous build metadata or auxiliary nodes – just the two chooser implementations.
+- Front-end logic rewritten around the current ComfyUI extension APIs.
+- Small, focused code base that’s easy to extend (styling, additional modes, etc.).
+
+## Contributing
+
+Fork away and adapt these choosers to your workflow. Pull requests are welcome – whether you add screenshots, alternative layouts, or automated tests.
+
+Enjoy choosing images the way you like! ✨
