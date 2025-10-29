@@ -17,11 +17,10 @@ function ensureStyles() {
         gap: 8px;
         width: 100%;
         box-sizing: border-box;
-        padding: 6px 4px 4px;
+        padding: 12px;
     }
     .cg-chooser-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
         gap: 6px;
         width: 100%;
     }
@@ -131,19 +130,34 @@ function ensureWidget(node) {
 }
 
 function determineLayout(node, detail) {
-    const buttonsHeight = 36;
+    const minWidth = 280;
+    const minCell = 90;
+    const maxCell = 220;
+    const gap = 6;
     const padding = 12;
-    const width = Math.max(280, node.size[0]);
-    const imageCount = detail.urls?.length ?? 0;
-    const columns = Math.min(Math.max(2, Math.ceil(Math.sqrt(imageCount || 1))), 4);
-    const rows = Math.ceil((imageCount || 1) / columns);
-    const cellSize = Math.max(80, Math.min((width - padding * 2) / columns - 6, 220));
-    const requiredHeight = rows * cellSize + buttonsHeight + padding * 2;
-    if (node.size[1] < requiredHeight) {
-        node.size[1] = requiredHeight;
-        node.setDirtyCanvas(true, true);
-    }
-    return { columns, cellSize };
+    const footerHeight = 42;
+
+    const nodeWidth = Math.max(minWidth, node.size?.[0] ?? minWidth);
+    const imageCount = Math.max(1, detail.urls?.length ?? 0);
+
+    const maxColumns = Math.max(1, Math.floor((nodeWidth - padding * 2 + gap) / (minCell + gap)));
+    const columns = Math.min(imageCount, Math.max(1, maxColumns));
+    const rows = Math.ceil(imageCount / columns);
+
+    const availableWidth = nodeWidth - padding * 2 - (columns - 1) * gap;
+    const cellSize = Math.max(minCell, Math.min(maxCell, availableWidth / columns));
+
+    const gridWidth = columns * cellSize + (columns - 1) * gap + padding * 2;
+    const gridHeight = rows * cellSize + (rows - 1) * gap + footerHeight + padding * 2;
+
+    return {
+        columns,
+        cellSize,
+        gap,
+        padding,
+        width: Math.max(minWidth, gridWidth),
+        height: gridHeight,
+    };
 }
 
 function renderChooser(node, detail) {
@@ -151,11 +165,14 @@ function renderChooser(node, detail) {
     const layout = determineLayout(node, detail);
     const container = info.container;
     container.innerHTML = "";
+    container.style.minHeight = `${layout.height}px`;
+    container.style.height = `${layout.height}px`;
 
     const grid = document.createElement("div");
     grid.className = "cg-chooser-grid";
-    grid.style.gridTemplateColumns = `repeat(${layout.columns}, minmax(0, 1fr))`;
+    grid.style.gridTemplateColumns = `repeat(${layout.columns}, ${layout.cellSize}px)`;
     grid.style.gridAutoRows = `${layout.cellSize}px`;
+    grid.style.gap = `${layout.gap}px`;
     info.grid = grid;
 
     const footer = document.createElement("div");
@@ -182,11 +199,25 @@ function renderChooser(node, detail) {
     container.appendChild(grid);
     container.appendChild(footer);
 
+    if (info.domWidget) {
+        const targetWidth = Math.max(layout.width, node.size?.[0] ?? layout.width);
+        const targetHeight = Math.max(layout.height, 120);
+        info.domWidget.computeSize = () => [targetWidth, targetHeight];
+        if (typeof node.setSize === "function") {
+            node.setSize([targetWidth, targetHeight]);
+        } else {
+            node.size = [targetWidth, targetHeight];
+        }
+        node.setDirtyCanvas?.(true, true);
+        node.graph?.setDirtyCanvas?.(true, true);
+    }
+
     node._ic_selection = new Set();
     (detail.urls ?? []).forEach((u, idx) => {
         const cell = document.createElement("div");
         cell.className = "cg-chooser-cell";
         cell.style.height = `${layout.cellSize}px`;
+        cell.style.width = `${layout.cellSize}px`;
         cell.dataset.index = String(idx);
         const img = document.createElement("img");
         img.src = api.apiURL(`/view?filename=${encodeURIComponent(u.filename)}&type=${u.type}&subfolder=${encodeURIComponent(u.subfolder ?? "")}`);
