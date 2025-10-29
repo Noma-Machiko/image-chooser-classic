@@ -41,7 +41,8 @@ function ensureStyles() {
     }
     .cg-chooser-cell img {
         width: 100%;
-        height: 100%;
+        height: auto;
+        max-height: 100%;
         object-fit: contain;
         display: block;
     }
@@ -131,32 +132,42 @@ function ensureWidget(node) {
 
 function determineLayout(node, detail) {
     const minWidth = 280;
-    const minCell = 90;
-    const maxCell = 220;
+    const maxWidth = 420;
+    const minCell = 70;
     const gap = 6;
     const padding = 12;
     const footerHeight = 42;
+    const maxHeight = 420;
 
-    const nodeWidth = Math.max(minWidth, node.size?.[0] ?? minWidth);
+    const currentWidth = node.size?.[0] ?? minWidth;
+    const targetWidth = Math.min(maxWidth, Math.max(minWidth, currentWidth));
     const imageCount = Math.max(1, detail.urls?.length ?? 0);
 
-    const maxColumns = Math.max(1, Math.floor((nodeWidth - padding * 2 + gap) / (minCell + gap)));
+    const usableWidth = targetWidth - padding * 2 + gap;
+    const maxColumns = Math.max(1, Math.floor(usableWidth / (minCell + gap)));
     const columns = Math.min(imageCount, Math.max(1, maxColumns));
     const rows = Math.ceil(imageCount / columns);
 
-    const availableWidth = nodeWidth - padding * 2 - (columns - 1) * gap;
-    const cellSize = Math.max(minCell, Math.min(maxCell, availableWidth / columns));
+    const availableWidth = targetWidth - padding * 2 - (columns - 1) * gap;
+    const cellWidth = Math.max(minCell, availableWidth / columns);
 
-    const gridWidth = columns * cellSize + (columns - 1) * gap + padding * 2;
-    const gridHeight = rows * cellSize + (rows - 1) * gap + footerHeight + padding * 2;
+    const gridWidth = columns * cellWidth + (columns - 1) * gap + padding * 2;
+    const rawHeight = rows * cellWidth + (rows - 1) * gap + padding * 2 + footerHeight;
+    const limitedHeight = Math.min(rawHeight, maxHeight);
+    const gridMaxHeight = Math.max(
+        minCell,
+        limitedHeight - footerHeight - padding * 2
+    );
 
     return {
         columns,
-        cellSize,
+        cellWidth,
         gap,
         padding,
-        width: Math.max(minWidth, gridWidth),
-        height: gridHeight,
+        width: Math.min(maxWidth, Math.max(minWidth, gridWidth)),
+        height: Math.max(120, limitedHeight),
+        gridScrollable: rawHeight > maxHeight,
+        gridMaxHeight,
     };
 }
 
@@ -170,9 +181,16 @@ function renderChooser(node, detail) {
 
     const grid = document.createElement("div");
     grid.className = "cg-chooser-grid";
-    grid.style.gridTemplateColumns = `repeat(${layout.columns}, ${layout.cellSize}px)`;
-    grid.style.gridAutoRows = `${layout.cellSize}px`;
+    grid.style.gridTemplateColumns = `repeat(${layout.columns}, 1fr)`;
+    grid.style.gridAutoRows = "auto";
     grid.style.gap = `${layout.gap}px`;
+    if (layout.gridScrollable) {
+        grid.style.maxHeight = `${layout.gridMaxHeight}px`;
+        grid.style.overflowY = "auto";
+    } else {
+        grid.style.removeProperty("max-height");
+        grid.style.overflowY = "hidden";
+    }
     info.grid = grid;
 
     const footer = document.createElement("div");
@@ -200,8 +218,8 @@ function renderChooser(node, detail) {
     container.appendChild(footer);
 
     if (info.domWidget) {
-        const targetWidth = Math.max(layout.width, node.size?.[0] ?? layout.width);
-        const targetHeight = Math.max(layout.height, 120);
+        const targetWidth = layout.width;
+        const targetHeight = layout.height;
         info.domWidget.computeSize = () => [targetWidth, targetHeight];
         if (typeof node.setSize === "function") {
             node.setSize([targetWidth, targetHeight]);
@@ -216,12 +234,19 @@ function renderChooser(node, detail) {
     (detail.urls ?? []).forEach((u, idx) => {
         const cell = document.createElement("div");
         cell.className = "cg-chooser-cell";
-        cell.style.height = `${layout.cellSize}px`;
-        cell.style.width = `${layout.cellSize}px`;
         cell.dataset.index = String(idx);
+        cell.style.aspectRatio = "1 / 1";
+
         const img = document.createElement("img");
-        img.src = api.apiURL(`/view?filename=${encodeURIComponent(u.filename)}&type=${u.type}&subfolder=${encodeURIComponent(u.subfolder ?? "")}`);
+        img.src = api.apiURL(
+            `/view?filename=${encodeURIComponent(u.filename)}&type=${u.type}&subfolder=${encodeURIComponent(u.subfolder ?? "")}`
+        );
         img.alt = `Image ${idx + 1}`;
+        img.addEventListener("load", () => {
+            if (img.naturalWidth && img.naturalHeight) {
+                cell.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+            }
+        });
         cell.appendChild(img);
         cell.addEventListener("click", (event) => {
             event.preventDefault();
