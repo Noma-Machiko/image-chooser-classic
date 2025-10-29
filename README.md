@@ -29,7 +29,7 @@ Clone or copy the repository into your `ComfyUI/custom_nodes` folder:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/<your-account>/image-chooser-classic.git
+git clone https://github.com/heyburns/image-chooser-classic.git
 ```
 
 Restart (or hard-refresh) ComfyUI so the new JavaScript files load. The **Add Node** dialog will list:
