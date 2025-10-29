@@ -12,9 +12,9 @@ Install either – or both – of the chooser nodes:
 | **Image Chooser Classic** | Inline widget that renders thumbnails inside the node body. |
 
 <p align="center">
-  <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" width="70%" />
+  <img src="docs/image-chooser-overlay.png" alt="Image Chooser overlay" width="90%" />
   <br />
-  <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" width="70%" />
+  <img src="docs/image-chooser-classic.png" alt="Image Chooser Classic widget" width="50%" />
 </p>
 
 ## Features
