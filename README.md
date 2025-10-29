@@ -37,11 +37,13 @@ Restart (or hard-refresh) ComfyUI so the new JavaScript files load. The **Add No
 - `Image Chooser`
 - `Image Chooser Classic`
 
+> ⚠️ **Heads-up:** The legacy `cg-image-picker` custom node registers the same messaging endpoint. Disable or remove it from `custom_nodes` before running these choosers, or the selection signal will never reach this implementation.
+
 ## Usage tips
 
-- **Overlay node** – ideal for large grids or when you want the chooser hovering over the canvas. Plays an optional alert sound when it pauses.
-- **Classic node** – keeps everything in the graph. The widget automatically resizes to show the entire batch.
-- **Hotkeys** – the chooser listens for 1–9 to toggle thumbnails, 0 to progress/cancel, and Esc to cancel.
+- **Overlay node** - ideal for large grids or when you want the chooser hovering over the canvas. Plays an optional alert sound when it pauses.
+- **Classic node** - keeps everything in the graph. The widget automatically resizes to show the entire batch.
+- **Hotkeys** - the chooser listens for 1-9 to toggle thumbnails, 0 to progress/cancel, and Esc to cancel.
 
 ## Differences from the original project
 
