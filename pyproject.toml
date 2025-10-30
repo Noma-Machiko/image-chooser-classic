@@ -28,7 +28,7 @@ Documentation = "https://github.com/heyburns/image-chooser-classic/wiki"
 "Bug Tracker" = "https://github.com/heyburns/image-chooser-classic/issues"
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "heyburns"
 DisplayName = "image-chooser-classic"
 Icon = ""
 includes = [] 
