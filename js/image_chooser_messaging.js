@@ -4,7 +4,7 @@ function send_message(id, message) {
     const body = new FormData();
     body.append("id", id ?? "");
     body.append("message", message);
-    return api.fetchApi("/image_chooser_message", { method: "POST", body });
+    return api.fetchApi("/image_chooser_classic_message", { method: "POST", body });
 }
 
 function send_cancel(id = -1) {

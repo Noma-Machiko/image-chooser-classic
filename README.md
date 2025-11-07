@@ -37,7 +37,7 @@ Restart (or hard-refresh) ComfyUI so the new JavaScript files load. The **Add No
 - `Image Chooser`
 - `Image Chooser Classic`
 
-> ⚠️ **Heads-up:** The legacy `cg-image-picker` custom node registers the same messaging endpoint. Disable or remove it from `custom_nodes` before running these choosers, or the selection signal will never reach this implementation.
+> ℹ️ **Good news:** This implementation now posts to its own `/image_chooser_classic_message` endpoint, so it can co-exist with the legacy `cg-image-picker` node. I don't recommend having both (especially since the legacy node no longer works), but if you keep both installed, just make sure each extension is up to date after ComfyUI restarts.
 
 ## Usage tips
 

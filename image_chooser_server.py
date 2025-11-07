@@ -154,7 +154,7 @@ class MessageBroker:
 routes = PromptServer.instance.routes
 
 
-@routes.post("/image_chooser_message")
+@routes.post("/image_chooser_classic_message")
 async def receive_message(request):
     post = await request.post()
     MessageBroker.add_message(post.get("id"), post.get("message", ""))

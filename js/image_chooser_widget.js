@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { send_message, send_cancel } from "./image_chooser_messaging.js";
 
-const EVENT_NAME = "cg-image-chooser-classic-widget";
+const EVENT_NAME = "cg-image-chooser-classic-widget-channel";
 const activeWidgets = new Map();
 let currentActiveNode = null;
 

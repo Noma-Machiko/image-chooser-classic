@@ -76,7 +76,7 @@ class BaseChooser(PreviewImage):
         return False
 
     def notify_frontend(self, context: Dict[str, object]) -> None:
-        PromptServer.instance.send_sync("cg-image-chooser-open", context)
+        PromptServer.instance.send_sync("cg-image-chooser-classic-open", context)
 
     def func(self, id, **kwargs):
         count = int(kwargs.pop("count", [1])[0])
@@ -225,7 +225,7 @@ class PreviewAndChooseClassic(BaseChooser):
         return "classic_widget"
 
     def notify_frontend(self, context: Dict[str, object]) -> None:
-        PromptServer.instance.send_sync("cg-image-chooser-classic-widget", context)
+        PromptServer.instance.send_sync("cg-image-chooser-classic-widget-channel", context)
 
 
 class PreviewAndChoose(BaseChooser):

@@ -33,7 +33,7 @@ app.registerExtension({
     setup() {
         ensureSettings();
 
-        api.addEventListener("cg-image-chooser-open", (event) => {
+        api.addEventListener("cg-image-chooser-classic-open", (event) => {
             if (app.ui.settings.getSettingValue("ImageChooser.alert", true)) {
                 alertAudio.currentTime = 0;
                 alertAudio.play().catch(() => {});
