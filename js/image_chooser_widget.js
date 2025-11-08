@@ -5,6 +5,8 @@ import { send_message, send_cancel } from "./image_chooser_messaging.js";
 const EVENT_NAME = "cg-image-chooser-classic-widget-channel";
 const activeWidgets = new Map();
 let currentActiveNode = null;
+const FALLBACK_ASPECT = 1;
+const MIN_CELL_EDGE = 1;
 
 function ensureStyles() {
     if (document.getElementById("cg-image-chooser-widget-style")) return;
@@ -18,6 +20,15 @@ function ensureStyles() {
         width: 100%;
         box-sizing: border-box;
         padding: 12px;
+    }
+    .cg-chooser-grid-stage {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
     }
     .cg-chooser-grid {
         display: grid;
@@ -101,6 +112,7 @@ function ensureWidget(node) {
 
     const container = document.createElement("div");
     container.className = "cg-chooser-widget";
+    container.style.height = "100%";
 
     const domWidget = node.addDOMWidget("Chooser", "cg-image-chooser", container, {
         getValue() {
@@ -113,9 +125,12 @@ function ensureWidget(node) {
     info = {
         container,
         domWidget,
+        gridStage: null,
         grid: null,
         progressBtn: null,
         cancelBtn: null,
+        lastDetail: null,
+        layout: null,
     };
     activeWidgets.set(node.id, info);
 
@@ -127,70 +142,305 @@ function ensureWidget(node) {
         return originalOnRemoved?.apply(this, args);
     };
 
+    if (!node._ic_resizeHooked) {
+        const originalOnResize = node.onResize;
+        node.onResize = function (...args) {
+            const result = originalOnResize?.apply(this, args);
+            const suppress = this._ic_suppressResize;
+            if (!suppress) this._ic_userSized = true;
+            requestLayoutUpdate(this);
+            return result;
+        };
+        node._ic_resizeHooked = true;
+    }
+
     return info;
+}
+
+function extractRatioFromDetail(detail) {
+    const urls = detail?.urls ?? [];
+    for (const u of urls) {
+        const w = Number(u.width);
+        const h = Number(u.height);
+        if (w > 0 && h > 0) return w / h;
+        const metaRatio = Number(u.aspect_ratio ?? u.ratio);
+        if (metaRatio > 0) return metaRatio;
+    }
+    const hint = Number(detail?.aspect_ratio ?? detail?.ratio);
+    return hint > 0 ? hint : null;
+}
+
+function updateThumbRatio(node, ratio) {
+    if (!Number.isFinite(ratio) || ratio <= 0) return;
+    const prev = Number(node._ic_thumb_ratio);
+    const delta = Math.abs((prev || FALLBACK_ASPECT) - ratio);
+    if (!prev || delta > 0.01) {
+        node._ic_thumb_ratio = ratio;
+        requestLayoutUpdate(node);
+    } else {
+        node._ic_thumb_ratio = ratio;
+    }
+}
+
+function getThumbRatio(node, detail) {
+    const cached = Number(node?._ic_thumb_ratio);
+    if (cached > 0) return cached;
+    const derived = extractRatioFromDetail(detail);
+    if (derived && derived > 0) {
+        node._ic_thumb_ratio = derived;
+        return derived;
+    }
+    return FALLBACK_ASPECT;
+}
+
+function formatPx(value) {
+    if (!Number.isFinite(value)) return "0px";
+    if (value < 0) value = 0;
+    const rounded = Math.round(value * 100) / 100;
+    return `${rounded}px`;
 }
 
 function determineLayout(node, detail) {
     const minWidth = 280;
-    const maxWidth = 420;
-    const minCell = 70;
-    const gap = 6;
+    const maxAutoWidth = 420;
+    const minHeight = 180;
+    const maxAutoHeight = 420;
+    const baseGap = 6;
     const padding = 12;
     const footerHeight = 42;
-    const maxHeight = 420;
+    const ratio = getThumbRatio(node, detail);
 
-    const currentWidth = node.size?.[0] ?? minWidth;
-    const targetWidth = Math.min(maxWidth, Math.max(minWidth, currentWidth));
+    const size = node.size ?? [];
+    const userSized = !!node._ic_userSized;
+    const rawWidth = Number(size[0]) || minWidth;
+    const rawHeight = Number(size[1]) || minHeight;
+    const minWidthForCalc = userSized ? MIN_CELL_EDGE + padding * 2 : minWidth;
+    const minHeightForCalc = userSized ? MIN_CELL_EDGE + padding * 2 + footerHeight : minHeight;
+    const currentWidth = Math.max(minWidthForCalc, rawWidth);
+    const currentHeight = Math.max(minHeightForCalc, rawHeight);
+    const availableWidth = Math.max(MIN_CELL_EDGE, currentWidth - padding * 2);
+    const availableHeight = Math.max(MIN_CELL_EDGE, currentHeight - padding * 2 - footerHeight);
+
     const imageCount = Math.max(1, detail.urls?.length ?? 0);
+    const maxColumns = Math.max(1, imageCount);
 
-    const usableWidth = targetWidth - padding * 2 + gap;
-    const maxColumns = Math.max(1, Math.floor(usableWidth / (minCell + gap)));
-    const columns = Math.min(imageCount, Math.max(1, maxColumns));
-    const rows = Math.ceil(imageCount / columns);
+    let bestLayout = null;
 
-    const availableWidth = targetWidth - padding * 2 - (columns - 1) * gap;
-    const cellWidth = Math.max(minCell, availableWidth / columns);
+    for (let columns = 1; columns <= maxColumns; columns++) {
+        const rows = Math.max(1, Math.ceil(imageCount / columns));
+        const emptySlots = rows * columns - imageCount;
+        const columnGap = Math.min(
+            baseGap,
+            availableWidth / Math.max(columns * 8, 1),
+            availableWidth / Math.max(imageCount * 6, 1)
+        );
+        const rowGap = Math.min(
+            baseGap,
+            availableHeight / Math.max(rows * 8, 1),
+            availableHeight / Math.max(imageCount * 6, 1)
+        );
 
-    const gridWidth = columns * cellWidth + (columns - 1) * gap + padding * 2;
-    const rawHeight = rows * cellWidth + (rows - 1) * gap + padding * 2 + footerHeight;
-    const limitedHeight = Math.min(rawHeight, maxHeight);
-    const gridMaxHeight = Math.max(
-        minCell,
-        limitedHeight - footerHeight - padding * 2
-    );
+        const widthSpace = availableWidth - (columns - 1) * columnGap;
+        const heightSpace = availableHeight - (rows - 1) * rowGap;
+        if (widthSpace <= 0 || heightSpace <= 0) continue;
+
+        const widthConstraint = widthSpace / columns;
+        const heightConstraint = heightSpace / rows;
+        if (widthConstraint <= 0 || heightConstraint <= 0) continue;
+
+        const widthFromHeight = heightConstraint * ratio;
+        const cellWidth = Math.max(2, Math.min(widthConstraint, widthFromHeight));
+        const cellHeight = cellWidth / ratio;
+        if (!Number.isFinite(cellWidth) || !Number.isFinite(cellHeight) || cellHeight <= 0) continue;
+
+        const usedWidth = columns * cellWidth + (columns - 1) * columnGap;
+        const usedHeight = rows * cellHeight + (rows - 1) * rowGap;
+        if (usedWidth > availableWidth + 0.5 || usedHeight > availableHeight + 0.5) {
+            continue;
+        }
+
+        const widthUsage = usedWidth / availableWidth;
+        const heightUsage = usedHeight / availableHeight;
+        const balance = Math.abs(columns - rows);
+        const sizeScore = cellWidth * cellHeight;
+        const fillPenalty = Math.abs(1 - widthUsage) + Math.abs(1 - heightUsage);
+        const score = sizeScore - fillPenalty * sizeScore * 0.1 - emptySlots * 0.01 - balance * 0.05;
+
+        if (!bestLayout || score > bestLayout.score) {
+            bestLayout = {
+                columns,
+                rows,
+                cellWidth,
+                cellHeight,
+                columnGap,
+                rowGap,
+                usedWidth,
+                usedHeight,
+                score,
+            };
+        }
+    }
+
+    if (!bestLayout) {
+        // Fallback: single column scaled to fit height
+        const columnGap = Math.min(baseGap, availableWidth / 12);
+        const rowGap = Math.min(baseGap, availableHeight / Math.max(imageCount * 2, 1));
+        const rows = imageCount;
+        const widthConstraint = availableWidth;
+        const heightConstraint = (availableHeight - (rows - 1) * rowGap) / rows;
+        const widthFromHeight = heightConstraint * ratio;
+        const cellWidth = Math.max(2, Math.min(widthConstraint, widthFromHeight));
+        const cellHeight = cellWidth / ratio;
+        bestLayout = {
+            columns: 1,
+            rows,
+            cellWidth,
+            cellHeight,
+            columnGap,
+            rowGap,
+            usedWidth: cellWidth,
+            usedHeight: rows * cellHeight + (rows - 1) * rowGap,
+            score: 0,
+        };
+    }
+
+    const widthScale = Math.min(1, availableWidth / bestLayout.usedWidth);
+    const heightScale = Math.min(1, availableHeight / bestLayout.usedHeight);
+    const scale = Math.min(widthScale, heightScale);
+
+    const scaledCellWidth = bestLayout.cellWidth * scale;
+    const scaledCellHeight = bestLayout.cellHeight * scale;
+    const scaledUsedWidth = bestLayout.usedWidth * scale;
+    const scaledUsedHeight = bestLayout.usedHeight * scale;
+
+    const preferredWidth = Math.max(minWidth, Math.min(maxAutoWidth, scaledUsedWidth + padding * 2));
+    const preferredHeight = Math.max(minHeight, Math.min(maxAutoHeight, scaledUsedHeight + padding * 2 + footerHeight));
 
     return {
-        columns,
-        cellWidth,
-        gap,
-        padding,
-        width: Math.min(maxWidth, Math.max(minWidth, gridWidth)),
-        height: Math.max(120, limitedHeight),
-        gridScrollable: rawHeight > maxHeight,
-        gridMaxHeight,
+        columns: bestLayout.columns,
+        rows: bestLayout.rows,
+        columnGap: bestLayout.columnGap * scale,
+        rowGap: bestLayout.rowGap * scale,
+        cellWidth: scaledCellWidth,
+        cellHeight: scaledCellHeight,
+        usedWidth: scaledUsedWidth,
+        usedHeight: scaledUsedHeight,
+        preferredWidth,
+        preferredHeight,
+        availableWidth,
+        availableHeight,
     };
+}
+
+function updateNodeSize(node, width, height) {
+    const currentWidth = Number(node.size?.[0]) || 0;
+    const currentHeight = Number(node.size?.[1]) || 0;
+    const sameWidth = Math.abs(currentWidth - width) < 0.5;
+    const sameHeight = Math.abs(currentHeight - height) < 0.5;
+    if (sameWidth && sameHeight) return;
+    if (typeof node.setSize === "function") {
+        node._ic_suppressResize = true;
+        node.setSize([width, height]);
+        node._ic_suppressResize = false;
+    } else {
+        node.size = [width, height];
+    }
+    node.setDirtyCanvas?.(true, true);
+    node.graph?.setDirtyCanvas?.(true, true);
+}
+
+function applyLayout(node, detail, info, options = {}) {
+    if (!detail || !info?.grid) return;
+    const layout = determineLayout(node, detail);
+    info.layout = layout;
+
+    const container = info.container;
+    const stage = info.gridStage;
+    const grid = info.grid;
+
+    const measuredStageWidth = stage?.clientWidth;
+    const measuredStageHeight = stage?.clientHeight;
+    const fallbackWidth = layout.availableWidth ?? layout.usedWidth ?? MIN_CELL_EDGE;
+    const fallbackHeight = layout.availableHeight ?? layout.usedHeight ?? MIN_CELL_EDGE;
+    const stageWidth = Math.max(
+        MIN_CELL_EDGE,
+        Number.isFinite(measuredStageWidth) && measuredStageWidth > 0 ? measuredStageWidth : fallbackWidth
+    );
+    const stageHeight = Math.max(
+        MIN_CELL_EDGE,
+        Number.isFinite(measuredStageHeight) && measuredStageHeight > 0 ? measuredStageHeight : fallbackHeight
+    );
+    const widthScale = layout.usedWidth > 0 ? Math.min(1, stageWidth / layout.usedWidth) : 1;
+    const heightScale = layout.usedHeight > 0 ? Math.min(1, stageHeight / layout.usedHeight) : 1;
+    const stageScale = Math.max(0, Math.min(widthScale, heightScale, 1));
+
+    const cellWidth = layout.cellWidth * stageScale;
+    const cellHeight = layout.cellHeight * stageScale;
+    const columnGap = layout.columnGap * stageScale;
+    const rowGap = layout.rowGap * stageScale;
+    const usedWidth = layout.usedWidth * stageScale;
+    const usedHeight = layout.usedHeight * stageScale;
+
+    grid.style.gridTemplateColumns = `repeat(${layout.columns}, ${formatPx(cellWidth)})`;
+    grid.style.gridAutoRows = formatPx(cellHeight);
+    grid.style.columnGap = formatPx(columnGap);
+    grid.style.rowGap = formatPx(rowGap);
+    grid.style.width = formatPx(usedWidth);
+    grid.style.height = formatPx(usedHeight);
+    grid.style.maxHeight = formatPx(usedHeight);
+    grid.style.maxWidth = formatPx(usedWidth);
+    grid.style.minWidth = formatPx(usedWidth);
+    grid.style.minHeight = formatPx(usedHeight);
+    grid.style.margin = "0 auto";
+    grid.style.justifyContent = "center";
+    grid.style.alignContent = "center";
+    grid.style.transform = "scale(1)";
+
+    const nodeHeight = Number(node.size?.[1]);
+    const enforceMinHeight = node._ic_userSized
+        ? Math.min(layout.preferredHeight, Number.isFinite(nodeHeight) ? nodeHeight : layout.preferredHeight)
+        : layout.preferredHeight;
+    container.style.minHeight = `${Math.max(0, enforceMinHeight)}px`;
+
+    if (info.domWidget) {
+        info.domWidget.computeSize = () => [layout.preferredWidth, layout.preferredHeight];
+    }
+
+    if (!node._ic_userSized && options.allowSizeUpdate !== false) {
+        updateNodeSize(node, layout.preferredWidth, layout.preferredHeight);
+    }
+}
+
+function requestLayoutUpdate(node) {
+    if (!node?._ic_last_detail) return;
+    if (node._ic_layoutPending) return;
+    node._ic_layoutPending = true;
+    const scheduler = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (fn) => setTimeout(fn, 0);
+    scheduler(() => {
+        node._ic_layoutPending = false;
+        const detail = node._ic_last_detail;
+        if (!detail) return;
+        const info = activeWidgets.get(node.id);
+        if (!info?.grid) return;
+        applyLayout(node, detail, info, { allowSizeUpdate: false });
+    });
 }
 
 function renderChooser(node, detail) {
     const info = ensureWidget(node);
-    const layout = determineLayout(node, detail);
+    info.lastDetail = detail;
+    node._ic_last_detail = detail;
     const container = info.container;
     container.innerHTML = "";
-    container.style.minHeight = `${layout.height}px`;
-    container.style.height = `${layout.height}px`;
+
+    const stage = document.createElement("div");
+    stage.className = "cg-chooser-grid-stage";
 
     const grid = document.createElement("div");
     grid.className = "cg-chooser-grid";
-    grid.style.gridTemplateColumns = `repeat(${layout.columns}, 1fr)`;
-    grid.style.gridAutoRows = "auto";
-    grid.style.gap = `${layout.gap}px`;
-    if (layout.gridScrollable) {
-        grid.style.maxHeight = `${layout.gridMaxHeight}px`;
-        grid.style.overflowY = "auto";
-    } else {
-        grid.style.removeProperty("max-height");
-        grid.style.overflowY = "hidden";
-    }
+    stage.appendChild(grid);
+
+    info.gridStage = stage;
     info.grid = grid;
 
     const footer = document.createElement("div");
@@ -214,21 +464,8 @@ function renderChooser(node, detail) {
 
     footer.appendChild(cancelBtn);
     footer.appendChild(progressBtn);
-    container.appendChild(grid);
+    container.appendChild(stage);
     container.appendChild(footer);
-
-    if (info.domWidget) {
-        const targetWidth = layout.width;
-        const targetHeight = layout.height;
-        info.domWidget.computeSize = () => [targetWidth, targetHeight];
-        if (typeof node.setSize === "function") {
-            node.setSize([targetWidth, targetHeight]);
-        } else {
-            node.size = [targetWidth, targetHeight];
-        }
-        node.setDirtyCanvas?.(true, true);
-        node.graph?.setDirtyCanvas?.(true, true);
-    }
 
     node._ic_selection = new Set();
     (detail.urls ?? []).forEach((u, idx) => {
@@ -245,6 +482,7 @@ function renderChooser(node, detail) {
         img.addEventListener("load", () => {
             if (img.naturalWidth && img.naturalHeight) {
                 cell.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+                updateThumbRatio(node, img.naturalWidth / img.naturalHeight);
             }
         });
         cell.appendChild(img);
@@ -255,6 +493,7 @@ function renderChooser(node, detail) {
         grid.appendChild(cell);
     });
 
+    applyLayout(node, detail, info);
     updateButtons(node);
 }
 

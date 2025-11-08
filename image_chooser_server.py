@@ -3,6 +3,7 @@ from typing import Dict, Optional, Set
 
 from aiohttp import web
 from server import PromptServer
+from comfy.model_management import InterruptProcessingException, throw_exception_if_processing_interrupted
 
 
 class Cancelled(Exception):
@@ -90,6 +91,7 @@ class MessageBroker:
         key = cls._normalise_id(unique_id)
 
         while True:
+            throw_exception_if_processing_interrupted()
             with cls._lock:
                 if cls._cancelled:
                     cls._cancelled = False
