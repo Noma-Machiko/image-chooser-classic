@@ -122,17 +122,6 @@ class BaseChooser(PreviewImage):
         for key in list(kwargs.keys()):
             kwargs[key] = kwargs[key][0]
 
-        if mode == "Always pause":
-            prompt_payload = kwargs.get("prompt")
-            prompt_dict = None
-            if isinstance(prompt_payload, list):
-                prompt_dict = prompt_payload[0] if prompt_payload else None
-            elif isinstance(prompt_payload, dict):
-                prompt_dict = prompt_payload
-            if prompt_dict and unique_id in prompt_dict:
-                prompt_inputs = prompt_dict[unique_id].setdefault("inputs", {})
-                prompt_inputs["mode"] = "Repeat last selection"
-
         selection: Optional[List[int]] = None
         last_selection = MessageBroker.get_last_selection(unique_id)
 
