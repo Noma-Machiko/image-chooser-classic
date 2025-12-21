@@ -102,7 +102,9 @@ class BaseChooser(PreviewImage):
             kwargs["segs"] = stash.get("segs")
 
         if kwargs.get("images") is None:
-            return (None, None, None, "", None)
+            raise RuntimeError(
+                "Image Chooser requires an 'images' input. Connect an IMAGE output to this node."
+            )
 
         images_in = kwargs.pop("images")
         latents_in = kwargs.pop("latents", None)
